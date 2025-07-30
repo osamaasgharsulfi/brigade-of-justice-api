@@ -1,7 +1,7 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
-// const caseRoutes = require('./routes/caseRoutes');
+const caseRoutes = require('./routes/Case.routes');
 const connectDB = require('./config/db');
 require('dotenv').config();
 
@@ -13,6 +13,7 @@ connectDB();
 app.use(cors());
 app.use(bodyParser.json());
 app.use('/api/auth', authRoutes);
-// app.use('/api/cases', caseRoutes);
+app.use('/uploads', express.static('uploads'));
+app.use('/api/cases', caseRoutes);
 
 module.exports = app;
