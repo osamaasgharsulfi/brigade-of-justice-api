@@ -1,6 +1,8 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const generateTempPassword = require('../utils/password');
+const sendLoginEmailToAttorney = require('../utils/mailer');
 
 const generateToken = (user) => {
     return jwt.sign(
@@ -100,6 +102,73 @@ exports.login = async (req, res) => {
             status: 'error',
             message: 'Server error',
             data: { error: err.message }
+        });
+    }
+};
+
+
+exports.registerAttorney = async (req, res) => {
+    try {
+        const { email, fullName } = req.body;
+
+        // ✅ Validate required fields
+        if (!email || !fullName) {
+            return res.status(400).json({
+                statusCode: 0,
+                status: 'error',
+                message: 'Full name and email are required',
+                data: null
+            });
+        }
+
+        // ✅ Fetch the requesting user and check role
+        const currentUser = await User.findById(req.user.id);
+        if (!currentUser || currentUser.role !== 'admin') {
+            return res.status(403).json({
+                statusCode: 0,
+                status: 'error',
+                message: 'Access denied. Only admins can register attorneys.',
+                data: null
+            });
+        }
+
+        // ✅ Check if email is already registered
+        const userExists = await User.findOne({ email });
+        if (userExists) {
+            return res.status(400).json({
+                statusCode: 0,
+                status: 'error',
+                message: 'Email already registered',
+                data: null
+            });
+        }
+
+        // ✅ Generate and save temp password
+        const tempPassword = generateTempPassword();
+
+        await User.create({
+            email,
+            fullName,
+            role: 'attorney',
+            password: tempPassword // Store as hash in real-world usage
+        });
+
+        // ✅ Send email with credentials
+        await sendLoginEmailToAttorney(email, tempPassword);
+
+        res.status(201).json({
+            statusCode: 1,
+            status: 'success',
+            message: 'Attorney registered and email sent',
+            data: null
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({
+            statusCode: 0,
+            status: 'error',
+            message: 'Attorney registration failed',
+            data: null
         });
     }
 };
